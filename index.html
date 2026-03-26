@@ -1239,9 +1239,11 @@ function saveAcc(){
   }
   try{saveData();}catch(e){console.warn(e);}
   closeOvl('ovl-acc');
-  renderAccSub();
-  renderSettings();
-  if(curScr==='dashboard')renderDash();
+  // Always refresh dashboard (accounts chips) regardless of where we came from
+  try{renderDash();}catch(e){console.warn(e);}
+  // Refresh sub-acc panel only if it's currently open
+  try{if(curSub==='sub-acc')renderAccSub();}catch(e){console.warn(e);}
+  try{renderSettings();}catch(e){console.warn(e);}
   toast(accEditId?'✅ Conto aggiornato':'✅ Conto aggiunto');
 }
 function delAcc(){
