@@ -9,20 +9,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22Finanza%22%2C%22short_name%22%3A%22Finanza%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%2318181a%22%2C%22theme_color%22%3A%22%2318181a%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%3D%2527http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%2527%2520viewBox%3D%25270%25200%2520192%2520192%2527%253E%253Crect%2520width%3D%2527192%2527%2520height%3D%2527192%2527%2520rx%3D%252742%2527%2520fill%3D%2527%252318181a%2527%2F%253E%253Ctext%2520y%3D%2527140%2527%2520x%3D%252796%2527%2520text-anchor%3D%2527middle%2527%2520font-size%3D%2527120%2527%253E%25F0%259F%25AA%2599%253C%2Ftext%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
-<script>
-// Register PWA icon via canvas for Android
-(function(){
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="42" fill="#18181a"/><text y="140" x="96" text-anchor="middle" font-size="120">🪙</text></svg>`;
-  const blob=new Blob([svg],{type:'image/svg+xml'});
-  const url=URL.createObjectURL(blob);
-  const link=document.createElement('link');
-  link.rel='apple-touch-icon';link.href=url;
-  document.head.appendChild(link);
-  const link2=document.createElement('link');
-  link2.rel='icon';link2.href=url;
-  document.head.appendChild(link2);
-})();
-</script>
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%2318181a'/%3E%3Ctext y='140' x='96' text-anchor='middle' font-size='120'%3E%F0%9F%AA%99%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%2318181a'/%3E%3Ctext y='140' x='96' text-anchor='middle' font-size='120'%3E%F0%9F%AA%99%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -1850,7 +1838,7 @@ function openSearch(){
   document.getElementById('search-panel').classList.add('open');
   // Build account chips
   const row=document.getElementById('srch-acc-chips');
-  row.innerHTML='<div class="srch-chip act" data-acc="" onclick="setSrchF('accId','')">Tutti</div>'+
+  row.innerHTML=`<div class="srch-chip act" data-acc="" onclick="setSrchF('accId','')">Tutti</div>`+
     D.accounts.map(a=>`<div class="srch-chip" data-acc="${a.id}" onclick="setSrchF('accId','${a.id}')">${a.emoji} ${a.name}</div>`).join('');
   srchFilters={type:'all',accId:'',minAmt:'',maxAmt:'',dateFrom:'',dateTo:''};
   document.getElementById('srch-inp').value='';
