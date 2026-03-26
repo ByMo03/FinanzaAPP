@@ -946,7 +946,7 @@ function renderDash(){
   });
   const add=document.createElement('div');add.className='acc-chip';
   add.style.cssText='display:flex;align-items:center;justify-content:center;min-width:72px;border-style:dashed;color:var(--tt);font-size:28px;font-weight:300;';
-  add.textContent='+';add.onclick=openAccSh;ae.appendChild(add);
+  add.textContent='+';add.onclick=()=>openAccSh(null);ae.appendChild(add);
   // Recent
   const re=document.getElementById('d-recent');
   const recent=[...D.transactions].sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id)).slice(0,5);
@@ -1239,9 +1239,7 @@ function saveAcc(){
   }
   try{saveData();}catch(e){console.warn(e);}
   closeOvl('ovl-acc');
-  // Always refresh dashboard (accounts chips) regardless of where we came from
   try{renderDash();}catch(e){console.warn(e);}
-  // Refresh sub-acc panel only if it's currently open
   try{if(curSub==='sub-acc')renderAccSub();}catch(e){console.warn(e);}
   try{renderSettings();}catch(e){console.warn(e);}
   toast(accEditId?'✅ Conto aggiornato':'✅ Conto aggiunto');
