@@ -11,6 +11,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://apis.google.com/js/api.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 :root{
   --bg:#18181a;--bg2:#1f1f21;--sf:#242426;--sf2:#2c2c2e;--sf3:#363638;
@@ -210,6 +212,32 @@ select.fi{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
 .item-sb{font-size:11px;color:var(--tt);margin-top:1px;}
 .item-val{font-size:14px;font-weight:700;}
 @media(max-width:360px){.cat-grid{grid-template-columns:repeat(3,1fr);}}
+/* Drive status */
+#drive-status{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid var(--bd);background:var(--sf2);transition:all .2s;flex-shrink:0;}
+#drive-status.connected{border-color:var(--inc);color:var(--inc);background:var(--inc-g);}
+#drive-status.syncing{border-color:var(--wrn);color:var(--wrn);background:var(--wrn-g);}
+#drive-status.error{border-color:var(--exp);color:var(--exp);background:var(--exp-g);}
+#drive-status.disconnected{color:var(--tt);}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;animation:spin .8s linear infinite;}
+/* Calculator button */
+.calc-btn{position:absolute;right:13px;top:50%;transform:translateY(-50%);font-size:18px;cursor:pointer;opacity:.6;transition:opacity .2s;user-select:none;}
+.calc-btn:active{opacity:1;}
+.ai-wrap .ai{padding-right:44px!important;}
+/* Calculator overlay */
+#ovl-calc .bsh{max-height:70vh;}
+.calc-display{background:var(--bg);border-radius:var(--r);padding:14px 16px;margin-bottom:10px;}
+.calc-expr{font-size:13px;color:var(--ts);min-height:18px;word-break:break-all;}
+.calc-val{font-size:32px;font-weight:800;letter-spacing:-1px;word-break:break-all;}
+.calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.ck{height:58px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;cursor:pointer;transition:all .15s;user-select:none;border:1px solid var(--bd);}
+.ck:active{transform:scale(.92);opacity:.8;}
+.ck-num{background:var(--sf2);color:var(--tp);}
+.ck-op{background:var(--sf);color:var(--acc);}
+.ck-fn{background:var(--sf);color:var(--ts);font-size:14px;}
+.ck-eq{background:var(--acc);color:#fff;grid-column:span 2;}
+.ck-clr{background:var(--exp-g);color:var(--exp);}
+.ck-del{background:var(--sf);color:var(--ts);}
 .txi-ic.transfer-out{background:rgba(79,142,247,.13);}
 .txi-ic.transfer-in{background:rgba(79,142,247,.13);}
 #fab-bg{position:fixed;inset:0;z-index:48;display:none;}
@@ -256,6 +284,7 @@ select.fi{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
   <div id="hdr">
     <div class="hdr-back" id="hdr-back" style="display:none" onclick="goBack()">‹</div>
     <div id="hdr-title">Finanza</div>
+    <div id="drive-status" class="disconnected" onclick="driveStatusClick()" title="Google Drive">☁️ Drive</div>
   </div>
   <div id="main">
 
@@ -348,7 +377,12 @@ select.fi{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
           <div class="set-it" onclick="askDeleteAll()"><div class="set-ic" style="background:var(--exp-g)">🗑️</div><div class="set-tx"><div class="set-lbl" style="color:var(--exp)">Cancella tutti i dati</div></div></div>
         </div>
       </div>
-      <div style="padding:24px 14px;text-align:center;color:var(--tt);font-size:11px;">Finanza v1.0 · Dati salvati localmente</div>
+      <div class="set-grp"><div class="set-grp-ttl">Google Drive</div>
+        <div class="set-list">
+          <div class="set-it" onclick="driveStatusClick()"><div class="set-ic" style="background:var(--acc-g)">☁️</div><div class="set-tx"><div class="set-lbl">Backup su Drive</div><div class="set-sub" id="s-drive">Non connesso</div></div><div class="set-arr" id="s-drive-arr">›</div></div>
+        </div>
+      </div>
+      <div style="padding:24px 14px;text-align:center;color:var(--tt);font-size:11px;">Finanza v1.1 · Dati salvati localmente + Google Drive</div>
     </div>
 
     <!-- SUB: ACCOUNTS -->
@@ -399,7 +433,7 @@ select.fi{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
     <div class="sh-hdr"><div class="sh-ttl" id="sh-tx-ttl">Nuova transazione</div><div class="sh-cls" onclick="closeOvl('ovl-tx')">✕</div></div>
     <div class="fs">
       <div class="ty-tog"><div class="ty-btn act expense" id="ty-exp" onclick="setTxType('expense')">↓ Spesa</div><div class="ty-btn income" id="ty-inc" onclick="setTxType('income')">↑ Entrata</div></div>
-      <div class="fg"><div class="flbl">Importo</div><div class="ai-wrap"><span class="ai-sym" id="tx-sym">€</span><input type="number" class="fi ai" id="tx-amt" placeholder="0,00" step="0.01" min="0" inputmode="decimal"></div></div>
+      <div class="fg"><div class="flbl">Importo</div><div class="ai-wrap"><span class="ai-sym" id="tx-sym">€</span><input type="number" class="fi ai" id="tx-amt" placeholder="0,00" step="0.01" min="0" inputmode="decimal"><span class="calc-btn" onclick="openCalc('tx-amt')">🧮</span></div></div>
       <div class="fg"><div class="flbl">Categoria</div><div class="cat-grid" id="tx-cats"></div></div>
       <div class="fg"><div class="flbl">Conto</div><div class="acc-sel" id="tx-accs"></div></div>
       <div class="fg"><div class="flbl">Data</div><input type="date" class="fi" id="tx-date"></div>
@@ -449,7 +483,7 @@ select.fi{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
     <div class="sh-hdr"><div class="sh-ttl" id="sh-rec-ttl">Nuova ricorrente</div><div class="sh-cls" onclick="closeOvl('ovl-rec')">✕</div></div>
     <div class="fs">
       <div class="ty-tog"><div class="ty-btn act expense" id="rt-exp" onclick="setRecT('expense')">↓ Spesa</div><div class="ty-btn income" id="rt-inc" onclick="setRecT('income')">↑ Entrata</div></div>
-      <div class="fg"><div class="flbl">Importo</div><div class="ai-wrap"><span class="ai-sym" id="rec-sym">€</span><input type="number" class="fi ai" id="rec-amt" placeholder="0,00" step="0.01" inputmode="decimal"></div></div>
+      <div class="fg"><div class="flbl">Importo</div><div class="ai-wrap"><span class="ai-sym" id="rec-sym">€</span><input type="number" class="fi ai" id="rec-amt" placeholder="0,00" step="0.01" inputmode="decimal"><span class="calc-btn" onclick="openCalc('rec-amt')">🧮</span></div></div>
       <div class="fg"><div class="flbl">Categoria</div><div class="cat-grid" id="rec-cats"></div></div>
       <div class="fg"><div class="flbl">Conto</div><div class="acc-sel" id="rec-accs"></div></div>
       <div class="fg"><div class="flbl">Data di inizio</div><input type="date" class="fi" id="rec-date"></div>
@@ -468,7 +502,7 @@ select.fi{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
     <div class="sh-hdr"><div class="sh-ttl" id="sh-tr-ttl">Trasferimento</div><div class="sh-cls" onclick="closeOvl('ovl-tr')">✕</div></div>
     <div class="fs">
       <div style="background:var(--acc-g);border:1px solid var(--acc);border-radius:var(--r);padding:12px 14px;font-size:13px;color:var(--ts);">⇄ Sposta denaro da un conto all'altro. Il patrimonio totale non cambia.</div>
-      <div class="fg"><div class="flbl">Importo</div><div class="ai-wrap"><span class="ai-sym" id="tr-sym">€</span><input type="number" class="fi ai" id="tr-amt" placeholder="0,00" step="0.01" min="0" inputmode="decimal"></div></div>
+      <div class="fg"><div class="flbl">Importo</div><div class="ai-wrap"><span class="ai-sym" id="tr-sym">€</span><input type="number" class="fi ai" id="tr-amt" placeholder="0,00" step="0.01" min="0" inputmode="decimal"><span class="calc-btn" onclick="openCalc('tr-amt')">🧮</span></div></div>
       <div class="fg"><div class="flbl">Da conto</div><div class="acc-sel" id="tr-from"></div></div>
       <div class="fg"><div class="flbl">A conto</div><div class="acc-sel" id="tr-to"></div></div>
       <div class="fg"><div class="flbl">Data</div><input type="date" class="fi" id="tr-date"></div>
@@ -492,9 +526,50 @@ select.fi{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
 </div>
 
 <div id="toast"></div>
+
+<!-- OVERLAY: CALCULATOR -->
+<div class="ovl" id="ovl-calc" onclick="ovlClick(event,'ovl-calc')">
+  <div class="bsh">
+    <div class="sh-handle"></div>
+    <div class="sh-hdr"><div class="sh-ttl">Calcolatrice</div><div class="sh-cls" onclick="closeOvl('ovl-calc')">✕</div></div>
+    <div style="padding:14px">
+      <div class="calc-display">
+        <div class="calc-expr" id="calc-expr"></div>
+        <div class="calc-val" id="calc-val">0</div>
+      </div>
+      <div class="calc-grid">
+        <div class="ck ck-fn" onclick="calcInput('(')">(</div>
+        <div class="ck ck-fn" onclick="calcInput(')')">)</div>
+        <div class="ck ck-fn" onclick="calcInput('%')">%</div>
+        <div class="ck ck-clr" onclick="calcClear()">C</div>
+        <div class="ck ck-num" onclick="calcInput('7')">7</div>
+        <div class="ck ck-num" onclick="calcInput('8')">8</div>
+        <div class="ck ck-num" onclick="calcInput('9')">9</div>
+        <div class="ck ck-op" onclick="calcInput('÷')">÷</div>
+        <div class="ck ck-num" onclick="calcInput('4')">4</div>
+        <div class="ck ck-num" onclick="calcInput('5')">5</div>
+        <div class="ck ck-num" onclick="calcInput('6')">6</div>
+        <div class="ck ck-op" onclick="calcInput('×')">×</div>
+        <div class="ck ck-num" onclick="calcInput('1')">1</div>
+        <div class="ck ck-num" onclick="calcInput('2')">2</div>
+        <div class="ck ck-num" onclick="calcInput('3')">3</div>
+        <div class="ck ck-op" onclick="calcInput('-')">−</div>
+        <div class="ck ck-num" onclick="calcInput('0')">0</div>
+        <div class="ck ck-num" onclick="calcInput('.')">.</div>
+        <div class="ck ck-del" onclick="calcDel()">⌫</div>
+        <div class="ck ck-op" onclick="calcInput('+')">+</div>
+        <div class="ck ck-eq" onclick="calcEquals()">=</div>
+      </div>
+    </div>
+  </div>
+</div>
 <script>
 // ── CONSTANTS ──────────────────────────────────────────────────────────────
 const SK='finanza_v1';
+const CLIENT_ID='472780980276-j7tadqv8v4f33thsnpkfhlggmrssmoee.apps.googleusercontent.com';
+const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.file';
+const SCHEMA_VERSION=1;
+const DRIVE_FILENAME='finanza_backup.json';
 const DEF_EXP_CATS=[
   {id:'ce1',name:'Cibo',emoji:'🍔',custom:false},{id:'ce2',name:'Ristorante',emoji:'🍽️',custom:false},
   {id:'ce3',name:'Trasporti',emoji:'🚗',custom:false},{id:'ce4',name:'Casa',emoji:'🏠',custom:false},
@@ -525,11 +600,20 @@ const CH_COLORS=['#4f8ef7','#30d158','#ff9f0a','#bf5af2','#ff453a','#ffd60a','#3
 // ── DATA ───────────────────────────────────────────────────────────────────
 let D={};
 function loadData(){try{const r=localStorage.getItem(SK);return r?JSON.parse(r):null;}catch{return null;}}
-function saveData(){localStorage.setItem(SK,JSON.stringify(D));}
+function saveData(){
+  localStorage.setItem(SK,JSON.stringify(D));
+  driveSyncDebounced();
+}
+function migrateData(d){
+  // Future migrations go here. Example:
+  // if((d.schemaVersion||1) < 2){ d.newField = defaultValue; }
+  d.schemaVersion=SCHEMA_VERSION;
+  return d;
+}
 function initData(){
   const ex=loadData();
-  if(ex){D=ex;return;}
-  D={version:1,
+  if(ex){D=migrateData(ex);return;}
+  D={version:1,schemaVersion:SCHEMA_VERSION,
     settings:{pin:'1234',currency:'EUR',budgetMonthly:null,budgetEnabled:false},
     accounts:[
       {id:uid(),name:'Contanti',emoji:'💰',color:'#30d158',initialBalance:0},
@@ -655,6 +739,13 @@ function unlock(){
   document.getElementById('lock').style.display='none';
   document.getElementById('app').style.display='flex';
   showScr('dashboard');renderSettings();
+  // Init Drive after app is visible
+  if(typeof gapi!=='undefined'&&typeof google!=='undefined'){
+    setTimeout(driveInit,500);
+  }else{
+    // Wait for scripts to load
+    window.addEventListener('load',()=>setTimeout(driveInit,500));
+  }
 }
 
 // ── NAVIGATION ─────────────────────────────────────────────────────────────
@@ -1177,6 +1268,12 @@ function savePin(){
 
 // ── SETTINGS RENDER ────────────────────────────────────────────────────────
 function renderSettings(){
+  const ds=document.getElementById('s-drive');
+  const da=document.getElementById('s-drive-arr');
+  if(ds){
+    if(driveConnected){ds.textContent='Connesso · Sincronizzazione automatica';if(da)da.style.color='var(--inc)';}
+    else{ds.textContent='Non connesso — Tocca per connettere';if(da)da.style.color='';}
+  }
   document.getElementById('s-accs').textContent=D.accounts.length+' conti';
   document.getElementById('s-recs').textContent=D.recurring.filter(r=>r.active).length+' attive';
   const c=CURRENCIES.find(x=>x.code===D.settings.currency)||CURRENCIES[0];
@@ -1333,6 +1430,254 @@ function delTr(){
     toast('🗑️ Trasferimento eliminato');
     trEditGroupId=null;
   });
+}
+
+
+// ── SCHEMA / COMPAT ────────────────────────────────────────────────────────
+// migrateData() is defined above near initData.
+// When adding new fields in future updates, add a migration block there.
+// The schemaVersion field ensures old Drive files are always upgradeable.
+
+// ── CALCULATOR ─────────────────────────────────────────────────────────────
+let calcTarget=null,calcExpr='',calcDisplay='0';
+function openCalc(targetId){
+  calcTarget=targetId;calcExpr='';calcDisplay='0';
+  document.getElementById('calc-expr').textContent='';
+  document.getElementById('calc-val').textContent='0';
+  openOvl('ovl-calc');
+}
+function calcInput(ch){
+  if(calcExpr==='Error')calcExpr='';
+  // prevent double operators
+  const ops=['÷','×','+','-'];
+  const last=calcExpr.slice(-1);
+  if(ops.includes(ch)&&ops.includes(last))calcExpr=calcExpr.slice(0,-1);
+  calcExpr+=ch;
+  calcDisplay=calcExpr;
+  try{
+    const preview=evalCalc(calcExpr);
+    if(!isNaN(preview)&&isFinite(preview))calcDisplay=fmtN(preview);
+  }catch(e){}
+  document.getElementById('calc-expr').textContent=calcExpr;
+  document.getElementById('calc-val').textContent=calcDisplay;
+}
+function calcDel(){
+  if(calcExpr==='Error'){calcExpr='';calcDisplay='0';}
+  else calcExpr=calcExpr.slice(0,-1);
+  if(!calcExpr)calcDisplay='0';
+  else{try{const v=evalCalc(calcExpr);if(!isNaN(v)&&isFinite(v))calcDisplay=fmtN(v);else calcDisplay=calcExpr;}catch(e){calcDisplay=calcExpr;}}
+  document.getElementById('calc-expr').textContent=calcExpr;
+  document.getElementById('calc-val').textContent=calcDisplay;
+}
+function calcClear(){
+  calcExpr='';calcDisplay='0';
+  document.getElementById('calc-expr').textContent='';
+  document.getElementById('calc-val').textContent='0';
+}
+function evalCalc(expr){
+  // Replace display symbols with JS operators, handle %
+  let e=expr.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-');
+  // Handle percentage: number% → number/100
+  e=e.replace(/(\d+\.?\d*)%/g,'($1/100)');
+  // eslint-disable-next-line no-new-func
+  return Function('"use strict";return ('+e+')')();
+}
+function calcEquals(){
+  try{
+    const result=evalCalc(calcExpr);
+    if(isNaN(result)||!isFinite(result)){calcExpr='Error';calcDisplay='Error';}
+    else{
+      const rounded=Math.round(result*100)/100;
+      if(calcTarget){
+        const el=document.getElementById(calcTarget);
+        if(el){el.value=rounded;el.dispatchEvent(new Event('input'));}
+      }
+      closeOvl('ovl-calc');
+      calcExpr='';calcDisplay='0';
+      return;
+    }
+  }catch(e){calcExpr='Error';calcDisplay='Errore';}
+  document.getElementById('calc-expr').textContent=calcExpr;
+  document.getElementById('calc-val').textContent=calcDisplay;
+}
+
+// ── GOOGLE DRIVE ───────────────────────────────────────────────────────────
+let driveConnected=false,driveFileId=null,driveTokenClient=null,driveSyncTimer=null;
+const DRIVE_FILE_ID_KEY='finanza_drive_file_id';
+
+function driveInit(){
+  // Load stored file ID
+  driveFileId=localStorage.getItem(DRIVE_FILE_ID_KEY)||null;
+  // Init GAPI
+  gapi.load('client',async()=>{
+    await gapi.client.init({});
+    await gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest');
+    // Init token client
+    driveTokenClient=google.accounts.oauth2.initTokenClient({
+      client_id:CLIENT_ID,
+      scope:DRIVE_SCOPE,
+      callback:(resp)=>{
+        if(resp.error){driveSetStatus('error');toast('❌ Errore connessione Drive: '+resp.error);return;}
+        driveConnected=true;
+        driveSetStatus('connected');
+        renderSettings();
+        driveFirstSync();
+      }
+    });
+    // Check if we have a stored session
+    const storedToken=localStorage.getItem('finanza_drive_token');
+    if(storedToken){
+      try{
+        gapi.client.setToken({access_token:storedToken});
+        // Verify token still valid
+        driveConnected=true;
+        driveSetStatus('connected');
+        renderSettings();
+        driveSyncNow();
+      }catch(e){localStorage.removeItem('finanza_drive_token');driveSetStatus('disconnected');}
+    }
+  });
+}
+
+function driveStatusClick(){
+  if(driveConnected){
+    confirm2('Google Drive','Vuoi disconnettere il backup su Google Drive?',()=>{
+      driveDisconnect();
+    });
+  }else{
+    driveConnect();
+  }
+}
+
+function driveConnect(){
+  if(!driveTokenClient){toast('⚠️ Google Drive non ancora caricato, riprova tra un momento');return;}
+  driveTokenClient.requestAccessToken({prompt:'consent'});
+}
+
+function driveDisconnect(){
+  google.accounts.oauth2.revoke(gapi.client.getToken()?.access_token||'',()=>{});
+  gapi.client.setToken(null);
+  driveConnected=false;driveFileId=null;
+  localStorage.removeItem('finanza_drive_token');
+  localStorage.removeItem(DRIVE_FILE_ID_KEY);
+  driveSetStatus('disconnected');
+  renderSettings();
+  toast('☁️ Drive disconnesso');
+}
+
+function driveSetStatus(state){
+  const el=document.getElementById('drive-status');
+  if(!el)return;
+  el.className='';
+  el.classList.add(state);
+  const labels={connected:'☁️ Sync',syncing:'<span class="spin">↻</span> Sync',error:'⚠️ Drive',disconnected:'☁️ Drive'};
+  el.innerHTML=labels[state]||'☁️ Drive';
+}
+
+function driveSyncDebounced(){
+  if(!driveConnected)return;
+  clearTimeout(driveSyncTimer);
+  driveSyncTimer=setTimeout(driveSyncNow,1500);
+}
+
+async function driveSyncNow(){
+  if(!driveConnected)return;
+  driveSetStatus('syncing');
+  try{
+    const token=gapi.client.getToken();
+    if(!token){driveSetStatus('error');return;}
+    localStorage.setItem('finanza_drive_token',token.access_token);
+    const content=JSON.stringify(D,null,2);
+    const blob=new Blob([content],{type:'application/json'});
+    if(driveFileId){
+      // Update existing file
+      const form=new FormData();
+      form.append('metadata',new Blob([JSON.stringify({name:DRIVE_FILENAME})],{type:'application/json'}));
+      form.append('file',blob);
+      const resp=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=multipart`,{
+        method:'PATCH',
+        headers:{Authorization:'Bearer '+token.access_token},
+        body:form
+      });
+      if(!resp.ok)throw new Error('Update failed: '+resp.status);
+    }else{
+      // Create new file
+      const form=new FormData();
+      form.append('metadata',new Blob([JSON.stringify({name:DRIVE_FILENAME,mimeType:'application/json'})],{type:'application/json'}));
+      form.append('file',blob);
+      const resp=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{
+        method:'POST',
+        headers:{Authorization:'Bearer '+token.access_token},
+        body:form
+      });
+      if(!resp.ok)throw new Error('Create failed: '+resp.status);
+      const data=await resp.json();
+      driveFileId=data.id;
+      localStorage.setItem(DRIVE_FILE_ID_KEY,driveFileId);
+    }
+    driveSetStatus('connected');
+    toast('☁️ Salvato su Drive');
+  }catch(e){
+    driveSetStatus('error');
+    toast('❌ Errore sincronizzazione Drive');
+    console.error('Drive sync error:',e);
+  }
+}
+
+async function driveFirstSync(){
+  // On first connect, check if a backup already exists on Drive
+  try{
+    const token=gapi.client.getToken();
+    if(!token)return;
+    // Search for existing file
+    const resp=await gapi.client.drive.files.list({
+      q:`name='${DRIVE_FILENAME}' and trashed=false`,
+      fields:'files(id,name,modifiedTime)',
+      spaces:'drive'
+    });
+    const files=resp.result.files;
+    if(files&&files.length>0){
+      const file=files[0];
+      driveFileId=file.id;
+      localStorage.setItem(DRIVE_FILE_ID_KEY,driveFileId);
+      // Ask user if they want to restore
+      confirm2('Backup trovato su Drive',
+        `Trovato un backup del ${new Date(file.modifiedTime).toLocaleDateString('it-IT')}. Vuoi ripristinarlo? I dati attuali verranno sostituiti.`,
+        async()=>{await driveRestore();}
+      );
+    }else{
+      // No backup yet, create one
+      driveSyncNow();
+    }
+  }catch(e){
+    console.error('Drive firstSync error:',e);
+    driveSyncNow();
+  }
+}
+
+async function driveRestore(){
+  try{
+    driveSetStatus('syncing');
+    const token=gapi.client.getToken();
+    if(!token||!driveFileId){toast('⚠️ Nessun file da ripristinare');return;}
+    const resp=await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,{
+      headers:{Authorization:'Bearer '+token.access_token}
+    });
+    if(!resp.ok)throw new Error('Download failed');
+    const data=await resp.json();
+    // Migrate data for compatibility
+    D=migrateData(data);
+    localStorage.setItem(SK,JSON.stringify(D));
+    driveSetStatus('connected');
+    toast('✅ Dati ripristinati da Drive');
+    // Reload UI
+    showScr('dashboard');
+    renderSettings();
+  }catch(e){
+    driveSetStatus('error');
+    toast('❌ Errore ripristino da Drive');
+    console.error('Drive restore error:',e);
+  }
 }
 
 // ── OVERLAY HELPERS ────────────────────────────────────────────────────────
