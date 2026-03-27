@@ -3165,8 +3165,8 @@ function openGrpSettle(grpId,from,to,amount){
   const gName=g?g.name:'';
   // Info box
   let infoExtra='';
-  if(to.trim()===meKey) infoExtra='<div style="font-size:12px;color:var(--inc);margin-top:6px;font-weight:600">💰 Verrà registrata un'entrata nel tuo conto</div>';
-  else if(from.trim()===meKey) infoExtra='<div style="font-size:12px;color:var(--exp);margin-top:6px;font-weight:600">💸 Verrà registrata un'uscita dal tuo conto</div>';
+  if(to.trim()===meKey) infoExtra=`<div style="font-size:12px;color:var(--inc);margin-top:6px;font-weight:600">💰 Verrà registrata un'entrata nel tuo conto</div>`;
+  else if(from.trim()===meKey) infoExtra=`<div style="font-size:12px;color:var(--exp);margin-top:6px;font-weight:600">💸 Verrà registrata un'uscita dal tuo conto</div>`;
   else infoExtra='<div style="font-size:12px;color:var(--ts);margin-top:6px">ℹ️ Pagamento tra altri membri — nessuna transazione creata</div>';
   document.getElementById('grpsettle-info').innerHTML=`
     <div style="font-size:12px;color:var(--ts);margin-bottom:6px">Pagamento da registrare</div>
