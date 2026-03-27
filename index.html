@@ -854,7 +854,7 @@ select.fi{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
       </div>
       <div class="fg"><div class="flbl">Chi ha pagato</div><div id="grpexp-payers"></div></div>
       <div class="fg"><div class="flbl">Data</div><input type="date" class="fi" id="grpexp-date"></div>
-      <div class="fg"><div class="flbl">Collegamento transazione app (opzionale)</div>
+      <div class="fg"><div class="flbl">Collega transazione esistente (opzionale)</div>
         <select class="fi" id="grpexp-txlink"><option value="">Nessuna</option></select>
       </div>
       <div class="fg">
@@ -878,7 +878,7 @@ select.fi{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
     <div class="sh-hdr"><div class="sh-ttl">Salda</div><div class="sh-cls" onclick="closeOvl('ovl-grpsettle')">✕</div></div>
     <div class="fs">
       <div style="background:var(--sf2);border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;" id="grpsettle-info"></div>
-      <div class="fg"><div class="flbl">Registra su conto</div><div class="acc-sel" id="grpsettle-accs"></div></div>
+      <div class="fg" id="grpsettle-acc-sec"><div class="flbl">Registra su conto</div><div class="acc-sel" id="grpsettle-accs"></div></div>
       <button class="btn btn-p" onclick="confirmGrpSettle()">Conferma pagamento</button>
     </div>
   </div>
@@ -2832,7 +2832,7 @@ function renderGrpList(body,archived){
 }
 function grpCard(g){
   const balances=calcGrpBalances(g);
-  const myKey=g.me||g.members[0];
+  const myKey=getMyName();
   const myBal=balances[myKey]||0;
   const balCls=myBal>0.001?'pos':myBal<-0.001?'neg':'zero';
   const balLbl=myBal>0.001?'+'+fmt(myBal):fmt(myBal);
@@ -2940,9 +2940,9 @@ function saveGrp(){
   if(!D.groups)D.groups=[];
   if(grpEditId){
     const g=D.groups.find(x=>x.id===grpEditId);
-    if(g)Object.assign(g,{name,emoji:getSelGrpEm(),members:grpMembers});
+    if(g)Object.assign(g,{name,emoji:getSelGrpEm(),members:grpMembers,me:getMyName()});
   }else{
-    D.groups.push({id:uid(),name,emoji:getSelGrpEm(),members:grpMembers,me:getMyName(),expenses:[],settlements:[],archived:false,createdAt:Date.now()});
+    D.groups.push({id:uid(),name,emoji:getSelGrpEm(),members:grpMembers,me:getMyName().trim(),expenses:[],settlements:[],archived:false,createdAt:Date.now()});
   }
   saveData();closeOvl('ovl-grp');renderGroups();
   toast(grpEditId?'✅ Gruppo aggiornato':'✅ Gruppo creato');
@@ -2971,7 +2971,7 @@ function renderGrpDetail(){
   const balances=calcGrpBalances(g);
   const settlements=calcSettlements(g,grpAlgo);
   // My summary
-  const meKey=getMyName();
+  const meKey=getMyName().trim();
   const myBal=balances[meKey]||0;
   const myBalHtml=`<div style="margin:10px 14px 0;background:${myBal>0.001?'var(--inc-g)':myBal<-0.001?'var(--exp-g)':'var(--sf2)'};border:1px solid ${myBal>0.001?'var(--inc)':myBal<-0.001?'var(--exp)':'var(--bd)'};border-radius:var(--r);padding:12px 14px;display:flex;align-items:center;gap:10px;">
     <div style="font-size:22px">${myBal>0.001?'📥':myBal<-0.001?'📤':'✅'}</div>
@@ -3035,7 +3035,7 @@ function openGrpExpSh(expId){
   setSplitMode(grpSplitMode,exp);
   openOvl('ovl-grpexp');
 }
-function selGrpPayer(name){document.querySelectorAll('#grpexp-payers .as-it').forEach(el=>el.classList.toggle('sel',el.textContent===name));}
+function selGrpPayer(name){document.querySelectorAll('#grpexp-payers .as-it').forEach(el=>el.classList.toggle('sel',el.textContent.trim()===name.trim()));}
 function getSplitExp(){
   if(!grpExpEditId||!grpDetailId)return null;
   const g=D.groups.find(x=>x.id===grpDetailId);
@@ -3067,14 +3067,13 @@ function saveGrpExp(){
   if(!amt||amt<=0){toast('⚠️ Inserisci importo');return;}
   const payerEl=document.querySelector('#grpexp-payers .as-it.sel');
   if(!payerEl){toast('⚠️ Seleziona chi ha pagato');return;}
-  const paidBy=payerEl.textContent;
+  const paidBy=payerEl.textContent.trim();
   const date=document.getElementById('grpexp-date').value||today();
   const txId=document.getElementById('grpexp-txlink').value||null;
   let splits={};
   if(grpSplitMode==='equal'){
     // Distribute remainder to payer to avoid rounding gaps
-    const payerEl=document.querySelector('#grpexp-payers .as-it.sel');
-    const payer=payerEl?payerEl.textContent:g.members[0];
+    const payer=(payerEl?payerEl.textContent:g.members[0]).trim();
     const base=Math.floor((amt/g.members.length)*100)/100;
     const remainder=Math.round((amt-base*g.members.length)*100)/100;
     g.members.forEach(m=>splits[m]=base);
@@ -3103,7 +3102,7 @@ function saveGrpExp(){
         saveData();renderGrpDetail();
       });
     }else{
-      // I'm not the payer — no tx now, will be created when I settle
+      // I'm not the payer — no tx created here (group is just a tracker)
       renderGrpDetail();
       toast('✅ Spesa aggiunta');
     }
@@ -3160,10 +3159,26 @@ function confirmGrpTx(){
 
 function openGrpSettle(grpId,from,to,amount){
   grpSettleData={grpId,from,to,amount};
-  document.getElementById('grpsettle-info').innerHTML=`<div style="font-size:12px;color:var(--ts);margin-bottom:6px">Pagamento da registrare</div>
+  const meKey=getMyName().trim();
+  const iAmInvolved=(from.trim()===meKey||to.trim()===meKey);
+  const g=D.groups.find(x=>x.id===grpId);
+  const gName=g?g.name:'';
+  // Info box
+  let infoExtra='';
+  if(to.trim()===meKey) infoExtra='<div style="font-size:12px;color:var(--inc);margin-top:6px;font-weight:600">💰 Verrà registrata un'entrata nel tuo conto</div>';
+  else if(from.trim()===meKey) infoExtra='<div style="font-size:12px;color:var(--exp);margin-top:6px;font-weight:600">💸 Verrà registrata un'uscita dal tuo conto</div>';
+  else infoExtra='<div style="font-size:12px;color:var(--ts);margin-top:6px">ℹ️ Pagamento tra altri membri — nessuna transazione creata</div>';
+  document.getElementById('grpsettle-info').innerHTML=`
+    <div style="font-size:12px;color:var(--ts);margin-bottom:6px">Pagamento da registrare</div>
     <div style="font-size:16px;font-weight:800">${from} → ${to}</div>
-    <div style="font-size:22px;font-weight:800;color:var(--acc);margin-top:4px">${fmt(amount)}</div>`;
-  document.getElementById('grpsettle-accs').innerHTML=D.accounts.map((a,i)=>`<div class="as-it${i===0?' sel':''}" onclick="selGrpSettleAcc('${a.id}')"><span class="as-ic">${a.emoji}</span><span class="as-nm">${a.name}</span><span class="as-bl">${fmt(accBal(a.id))}</span></div>`).join('');
+    <div style="font-size:22px;font-weight:800;color:var(--acc);margin-top:4px">${fmt(amount)}</div>
+    ${infoExtra}`;
+  // Show account selector only when I'm involved
+  const accSec=document.getElementById('grpsettle-acc-sec');
+  if(accSec) accSec.style.display=iAmInvolved?'':'none';
+  if(iAmInvolved){
+    document.getElementById('grpsettle-accs').innerHTML=D.accounts.map((a,i)=>`<div class="as-it${i===0?' sel':''}" onclick="selGrpSettleAcc('${a.id}')"><span class="as-ic">${a.emoji}</span><span class="as-nm">${a.name}</span><span class="as-bl">${fmt(accBal(a.id))}</span></div>`).join('');
+  }
   openOvl('ovl-grpsettle');
 }
 function selGrpSettleAcc(id){document.querySelectorAll('#grpsettle-accs .as-it').forEach(el=>el.classList.toggle('sel',el.getAttribute('onclick').includes("'"+id+"'")));}
@@ -3171,25 +3186,33 @@ function confirmGrpSettle(){
   if(!grpSettleData)return;
   const{grpId,from,to,amount}=grpSettleData;
   const g=D.groups.find(x=>x.id===grpId);if(!g)return;
-  const accEl=document.querySelector('#grpsettle-accs .as-it.sel');
-  if(!accEl){toast('⚠️ Seleziona un conto');return;}
-  const accId=accEl.getAttribute('onclick').match(/'([^']+)'/)[1];
+  const meKey=getMyName().trim();
+  const toMe=to.trim()===meKey;
+  const fromMe=from.trim()===meKey;
+  const iAmInvolved=toMe||fromMe;
+  // Only require account selection when I'm involved
+  let accId=null;
+  if(iAmInvolved){
+    const accEl=document.querySelector('#grpsettle-accs .as-it.sel');
+    if(!accEl){toast('⚠️ Seleziona un conto');return;}
+    accId=accEl.getAttribute('onclick').match(/'([^']+)'/)[1];
+  }
   if(!g.settlements)g.settlements=[];
-  g.settlements.push({from,to,amount,date:today(),accountId:accId});
-  const meKey=getMyName();
-  if(to===meKey){
-    // Someone paid me — register income automatically
+  g.settlements.push({from,to,amount,date:today(),accountId:accId||null});
+  if(toMe){
+    // Someone paid me — create income automatically with Rimborso category
     const cat=D.categories.income.find(c=>c.id==='ci5')||D.categories.income[D.categories.income.length-1];
     D.transactions.push({id:uid(),type:'income',amount,categoryId:cat.id,accountId:accId,date:today(),note:'Saldo da '+from+' ('+g.name+')',createdAt:Date.now(),receipts:[]});
     saveData();closeOvl('ovl-grpsettle');renderGrpDetail();
-    toast('✅ Pagamento ricevuto registrato');
-  }else if(from===meKey){
-    // I'm paying someone — ask category for expense
+    toast('✅ Entrata registrata');
+  }else if(fromMe){
+    // I'm paying someone — ask account + category, create expense
     saveData();closeOvl('ovl-grpsettle');
     openGrpTxPicker('expense',amount,'Saldo a '+to+' ('+g.name+')',today(),(txId)=>{renderGrpDetail();});
   }else{
+    // Payment between other members — just update group balances, no tx
     saveData();closeOvl('ovl-grpsettle');renderGrpDetail();
-    toast('✅ Pagamento registrato');
+    toast('✅ Saldo registrato');
   }
 }
 
