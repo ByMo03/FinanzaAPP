@@ -4054,80 +4054,127 @@ function getOrderedAccounts(){
   return ordered;
 }
 
+// ── AUTO-SCROLL CONFIG ───────────────────────────────────────────────────────
+const ACC_SCROLL_ZONE=60;  // px from edge that triggers auto-scroll
+const ACC_SCROLL_SPEED=8;  // px per frame
+let accScrollTimer=null;
+
+function startAutoScroll(container,clientX){
+  stopAutoScroll();
+  const rect=container.getBoundingClientRect();
+  const distLeft=clientX-rect.left;
+  const distRight=rect.right-clientX;
+  let dir=0;
+  if(distLeft<ACC_SCROLL_ZONE)dir=-1;
+  else if(distRight<ACC_SCROLL_ZONE)dir=1;
+  if(!dir)return;
+  // Speed scales with proximity to edge
+  const intensity=dir<0?(1-distLeft/ACC_SCROLL_ZONE):(1-distRight/ACC_SCROLL_ZONE);
+  const speed=Math.round(ACC_SCROLL_SPEED*intensity*2);
+  accScrollTimer=setInterval(()=>{container.scrollLeft+=dir*speed;},16);
+}
+
+function stopAutoScroll(){
+  clearInterval(accScrollTimer);accScrollTimer=null;
+}
+
+function doReorder(fromId,toId){
+  if(!fromId||!toId||fromId===toId)return;
+  const ordered=getOrderedAccounts();
+  const fromIdx=ordered.findIndex(a=>a.id===fromId);
+  const toIdx=ordered.findIndex(a=>a.id===toId);
+  if(fromIdx<0||toIdx<0)return;
+  const moved=ordered.splice(fromIdx,1)[0];
+  ordered.splice(toIdx,0,moved);
+  D.accountOrder=ordered.map(a=>a.id);
+  saveData();
+  renderDash();
+}
+
 function setupAccChipLongPress(chip,acc){
-  let timer=null;
-  const start=()=>{timer=setTimeout(()=>enterReorderMode(),500);};
-  const cancel=()=>{clearTimeout(timer);};
-  chip.addEventListener('touchstart',start,{passive:true});
-  chip.addEventListener('touchend',cancel);
-  chip.addEventListener('touchmove',cancel,{passive:true});
-  chip.addEventListener('mousedown',start);
-  chip.addEventListener('mouseup',cancel);
-  chip.addEventListener('mouseleave',cancel);
-  // Click only when not in reorder mode
+  // ── Long press to enter reorder mode ──────────────────────────────────────
+  let pressTimer=null;
+  let pressStarted=false;
+
+  const startPress=()=>{pressStarted=true;pressTimer=setTimeout(()=>enterReorderMode(),500);};
+  const cancelPress=()=>{pressStarted=false;clearTimeout(pressTimer);};
+
+  chip.addEventListener('touchstart',startPress,{passive:true});
+  chip.addEventListener('touchend',cancelPress);
+  chip.addEventListener('touchmove',cancelPress,{passive:true});
+  chip.addEventListener('mousedown',startPress);
+  chip.addEventListener('mouseup',cancelPress);
+  chip.addEventListener('mouseleave',cancelPress);
   chip.addEventListener('click',()=>{if(!accReorderMode)navigate('sub-acc');});
-  // Drag events
+
+  // ── Mouse drag (desktop) with auto-scroll ─────────────────────────────────
   chip.setAttribute('draggable','true');
+
   chip.addEventListener('dragstart',e=>{
     if(!accReorderMode){e.preventDefault();return;}
     dragSrcId=acc.id;
     chip.classList.add('dragging');
     e.dataTransfer.effectAllowed='move';
   });
-  chip.addEventListener('dragend',()=>chip.classList.remove('dragging'));
+
+  chip.addEventListener('drag',e=>{
+    if(!accReorderMode||!dragSrcId)return;
+    const ae=document.getElementById('d-accs');
+    if(ae&&e.clientX>0)startAutoScroll(ae,e.clientX);
+  });
+
+  chip.addEventListener('dragend',()=>{
+    chip.classList.remove('dragging');
+    stopAutoScroll();
+  });
+
   chip.addEventListener('dragover',e=>{
     if(!accReorderMode)return;
     e.preventDefault();e.dataTransfer.dropEffect='move';
     chip.classList.add('drag-over');
   });
+
   chip.addEventListener('dragleave',()=>chip.classList.remove('drag-over'));
+
   chip.addEventListener('drop',e=>{
     if(!accReorderMode||!dragSrcId)return;
     e.preventDefault();
+    stopAutoScroll();
     chip.classList.remove('drag-over');
-    if(dragSrcId===acc.id)return;
-    // Reorder
-    const ordered=getOrderedAccounts();
-    const fromIdx=ordered.findIndex(a=>a.id===dragSrcId);
-    const toIdx=ordered.findIndex(a=>a.id===acc.id);
-    if(fromIdx<0||toIdx<0)return;
-    const moved=ordered.splice(fromIdx,1)[0];
-    ordered.splice(toIdx,0,moved);
-    D.accountOrder=ordered.map(a=>a.id);
-    saveData();
-    renderDash();
+    doReorder(dragSrcId,acc.id);
   });
-  // Touch drag (mobile)
-  let touchDragAcc=null,touchClone=null;
-  chip.addEventListener('touchstart',e=>{if(!accReorderMode)return;touchDragAcc=acc.id;},{passive:true});
+
+  // ── Touch drag (mobile) with auto-scroll ──────────────────────────────────
+  let touchDragId=null;
+
+  chip.addEventListener('touchstart',e=>{
+    if(!accReorderMode)return;
+    touchDragId=acc.id;
+  },{passive:true});
+
   chip.addEventListener('touchmove',e=>{
-    if(!accReorderMode||!touchDragAcc)return;
+    if(!accReorderMode||!touchDragId)return;
     e.preventDefault();
     const t=e.touches[0];
+    // Auto-scroll
+    const ae=document.getElementById('d-accs');
+    if(ae)startAutoScroll(ae,t.clientX);
+    // Highlight drop target
     const el=document.elementFromPoint(t.clientX,t.clientY);
     const target=el?el.closest('.acc-chip[data-acc-id]'):null;
     document.querySelectorAll('.acc-chip').forEach(c=>c.classList.remove('drag-over'));
-    if(target&&target.dataset.accId!==touchDragAcc)target.classList.add('drag-over');
+    if(target&&target.dataset.accId!==touchDragId)target.classList.add('drag-over');
   },{passive:false});
+
   chip.addEventListener('touchend',e=>{
-    if(!accReorderMode||!touchDragAcc)return;
+    if(!accReorderMode||!touchDragId)return;
+    stopAutoScroll();
     const t=e.changedTouches[0];
     const el=document.elementFromPoint(t.clientX,t.clientY);
     const target=el?el.closest('.acc-chip[data-acc-id]'):null;
     document.querySelectorAll('.acc-chip').forEach(c=>c.classList.remove('drag-over'));
-    if(target&&target.dataset.accId&&target.dataset.accId!==touchDragAcc){
-      const ordered=getOrderedAccounts();
-      const fromIdx=ordered.findIndex(a=>a.id===touchDragAcc);
-      const toIdx=ordered.findIndex(a=>a.id===target.dataset.accId);
-      if(fromIdx>=0&&toIdx>=0){
-        const moved=ordered.splice(fromIdx,1)[0];
-        ordered.splice(toIdx,0,moved);
-        D.accountOrder=ordered.map(a=>a.id);
-        saveData();
-        renderDash();
-      }
-    }
-    touchDragAcc=null;
+    if(target&&target.dataset.accId)doReorder(touchDragId,target.dataset.accId);
+    touchDragId=null;
   });
 }
 
@@ -4143,6 +4190,7 @@ function enterReorderMode(){
 
 function exitReorderMode(){
   accReorderMode=false;
+  stopAutoScroll();
   const ae=document.getElementById('d-accs');
   if(ae)ae.classList.remove('reorder-mode');
   const btn=document.getElementById('d-acc-reorder-btn');
