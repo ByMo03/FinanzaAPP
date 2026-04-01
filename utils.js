@@ -74,11 +74,7 @@ function toast(msg,dur=2400){
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded',()=>{
-  initData();
-  processRec();
-  initLock();
-});
+
 
 function nextDateRec(ds,freq,dayOfMonth){
   const d=new Date(ds+'T00:00:00');
